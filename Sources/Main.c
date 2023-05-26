@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <Viewport.h>
+#include <stdbool.h>
+
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
@@ -18,10 +20,10 @@
  */
 static void MainDisplayProgramUsage(char *String_Program_Name)
 {
-	printf("Image Viewer (C) 2017-2021 Adrien RICCIARDI.\n"
+	printf("Image Viewer (C) 2017-2023 Adrien RICCIARDI & Baco.\n"
 		"\n"
-		"Usage : %s Image_File | --help\n"
-		"Image_File is the file to open.\n"
+		"Usage : %s Image_File | --fullscreen Image_File | --help\n"
+		"Image_File is the file to open. Should be a JPG, PNG or TIF file.\n"
 		"--help displays this message.\n"
 		"\n"
 		"Control keys :\n"
@@ -29,7 +31,7 @@ static void MainDisplayProgramUsage(char *String_Program_Name)
 		"  - Moving the mouse while image is zoomed allows to move in the zoomed image (don't forget that the window area represents the whole image, even when the later is zoomed).\n"
 		"  - 'f' key : toggle image flipping (first press leads to horizontal flipping, second press vertical flipping, third press both horizontal and vertical flipping, fourth press disables flipping).\n"
 		"  - 'q' key : exit program.\n"
-		"  - 's' key : scale the image to fit the viewport size.\n", String_Program_Name);
+		"  - 's' key : scale the image to fit the viewport size. Not available in fullscreen mode.\n", String_Program_Name);
 }
 
 /** Automatically called on program exit, gracefully uninitialize SDL. */
@@ -50,21 +52,33 @@ int main(int argc, char *argv[])
 	unsigned int Frame_Starting_Time = 0, Elapsed_Time;
 	int Mouse_X, Mouse_Y, Zoom_Factor = 1, i;
 	TViewportFlippingModeID Flipping_Mode = VIEWPORT_FLIPPING_MODE_ID_NORMAL;
+	bool fullscreen = false;
+	char *image_file;
 	
 	// Check arguments
-	if (argc != 2)
+	if ((argc < 2) || (argc > 3))
 	{
 		MainDisplayProgramUsage(argv[0]);
 		return EXIT_FAILURE;
 	}
 	
+	if ((argc == 3) && (strcmp(argv[1], "--fullscreen") == 0))
+	{
+		fullscreen = true;
+	}
+	else if (argc == 3)
+	{
+		MainDisplayProgramUsage(argv[0]);
+		return EXIT_FAILURE;
+	}
+
 	// Is help requested ?
-	if (strcmp(argv[1], "--help") == 0)
+	if ((argc == 2) && (strcmp(argv[1], "--help") == 0))
 	{
 		MainDisplayProgramUsage(argv[0]);
 		return EXIT_SUCCESS;
 	}
-	
+
 	// Initialize SDL before everything else, so other SDL libraries can be safely initialized
 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
 	{
@@ -80,22 +94,23 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 	
+	image_file = (argc == 3 ? argv[2] : argv[1]);
 	// Try to load the image before creating the viewport
-	Pointer_Surface_Image = IMG_Load(argv[1]);
+	Pointer_Surface_Image = IMG_Load(image_file);
 	if (Pointer_Surface_Image == NULL)
 	{
-		printf("Error : failed to load image file '%s' (%s).\n", argv[1], IMG_GetError());
+		printf("Error : failed to load image file '%s' (%s).\n", image_file, IMG_GetError());
 		return EXIT_FAILURE;
 	}
 	
 	// Create window title from image name
 	strcpy(String_Program_Title, "Image Viewer - ");
-	strncat(String_Program_Title, argv[1], sizeof(String_Program_Title) - sizeof("Image Viewer - "));
+	strncat(String_Program_Title, image_file, sizeof(String_Program_Title) - sizeof("Image Viewer - "));
 	
 	// Initialize modules (no need to display an error message if a module initialization fails because the module already did)
 	if (ViewportInitialize(String_Program_Title, Pointer_Surface_Image) != 0) return EXIT_FAILURE; // TODO set initial viewport size and window decorations according to parameters saved on previous program exit ?
 	SDL_FreeSurface(Pointer_Surface_Image);
-	
+
 	// Process incoming SDL events
 	while (1)
 	{
@@ -149,7 +164,7 @@ int main(int argc, char *argv[])
 					// Quit program
 					else if (Event.key.keysym.sym == SDLK_q) return EXIT_SUCCESS;
 					// Scale image to fit viewport
-					else if (Event.key.keysym.sym == SDLK_s)
+					else if (!fullscreen && (Event.key.keysym.sym == SDLK_s))
 					{
 						ViewportScaleImage();
 						
@@ -171,6 +186,11 @@ int main(int argc, char *argv[])
 				default:
 					break;
 			}
+		}
+		
+		if (fullscreen)
+		{
+			ViewportScaleImage();
 		}
 		
 		ViewportDrawImage();

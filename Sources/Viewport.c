@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <Viewport.h>
+#include <math.h>
 
 //-------------------------------------------------------------------------------------------------
 // Private variables
@@ -103,8 +104,8 @@ static int ViewportAdaptImage(int Image_Width, int Image_Height)
 		printf("[%s:%d] Error : failed to target the renderer to the adjusted image texture (%s).\n", __FUNCTION__, __LINE__, SDL_GetError());
 		return -1;
 	}
-	// Set a green background color
-	if (SDL_SetRenderDrawColor(Pointer_Viewport_Window_Renderer, 0, 192, 0, 0) != 0)
+	// Set a black background color
+	if (SDL_SetRenderDrawColor(Pointer_Viewport_Window_Renderer, 0, 0, 0, 0) != 0)
 	{
 		printf("[%s:%d] Error : failed to set renderer drawing color (%s).\n", __FUNCTION__, __LINE__, SDL_GetError());
 		return -1;
@@ -117,8 +118,8 @@ static int ViewportAdaptImage(int Image_Width, int Image_Height)
 	}
 	
 	// Copy the original image on the adjusted image
-	Rectangle_Original_Image_Dimensions.x = 0;
-	Rectangle_Original_Image_Dimensions.y = 0;
+	Rectangle_Original_Image_Dimensions.x = round((Viewport_Width - Image_Width) /2);
+	Rectangle_Original_Image_Dimensions.y = round((Viewport_Height - Image_Height) /2);
 	Rectangle_Original_Image_Dimensions.w = Image_Width - 1;
 	Rectangle_Original_Image_Dimensions.h = Image_Height - 1;
 	if (SDL_RenderCopyEx(Pointer_Viewport_Window_Renderer, Pointer_Viewport_Texture_Original_Image, NULL, &Rectangle_Original_Image_Dimensions, 0, NULL, Viewport_Adapted_Image_Flipping_Mode) != 0)
@@ -155,6 +156,8 @@ int ViewportInitialize(char *String_Window_Title, SDL_Surface *Pointer_Surface_I
 	
 	// Try to create an hardware-accelerated renderer to plug to the window
 	Pointer_Viewport_Window_Renderer = SDL_CreateRenderer(Pointer_Viewport_Window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	//Pointer_Viewport_Window_Renderer = SDL_CreateRenderer(Pointer_Viewport_Window, -1, SDL_RENDERER_SOFTWARE);
+	//SDL_SetHintWithPriority(SDL_HINT_RENDER_VSYNC, "1", SDL_HINT_OVERRIDE);
 	if (Pointer_Viewport_Window_Renderer == NULL)
 	{
 		printf("[%s:%d] Error : failed to create the SDL window renderer (%s).\n", __FUNCTION__, __LINE__, SDL_GetError());
@@ -184,6 +187,7 @@ int ViewportInitialize(char *String_Window_Title, SDL_Surface *Pointer_Surface_I
 
 void ViewportDrawImage(void)
 {
+	SDL_RenderClear(Pointer_Viewport_Window_Renderer);
 	SDL_RenderCopyEx(Pointer_Viewport_Window_Renderer, Pointer_Viewport_Texture_Adapted_Image, &Viewport_Rectangle_View, NULL, 0, NULL, 0);
 	SDL_RenderPresent(Pointer_Viewport_Window_Renderer);
 }
